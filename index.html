@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Mobile 2D Platformer</title>
   <style>
-    /* CSS Styling */
     body {
       margin: 0;
       overflow: hidden;
       background: #222;
       font-family: sans-serif;
-      -webkit-touch-callout: none; /* Disable callout on iOS */
-      -webkit-user-select: none; /* Disable selection */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
@@ -27,24 +26,36 @@
       position: fixed;
       bottom: 10px;
       width: 100%;
-      text-align: center;
-      user-select: none;
+      height: 80px;
+      pointer-events: none; /* so canvas can detect touches outside buttons */
     }
-    #controls button {
-      width: 60px;
-      height: 60px;
-      margin: 10px;
-      font-size: 28px;
-      border-radius: 12px;
+    #left, #right {
+      pointer-events: auto;
+      position: fixed;
+      bottom: 10px;
+      width: 100px;
+      height: 100px;
+      font-size: 48px;
+      border-radius: 50%;
       border: none;
       background: #444;
       color: #eee;
       box-shadow: 0 0 8px #0008 inset;
       touch-action: none;
+      user-select: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
     }
-    #controls button:active {
+    #left:active, #right:active {
       background: #666;
       box-shadow: 0 0 4px #000 inset;
+      opacity: 1;
+    }
+    #left {
+      left: 20px;
+    }
+    #right {
+      right: 20px;
     }
   </style>
 </head>
@@ -54,11 +65,9 @@
   <div id="controls">
     <button id="left">◀️</button>
     <button id="right">▶️</button>
-    <button id="jump">⭡</button>
   </div>
 
   <script>
-    // JavaScript Game Code
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
@@ -83,15 +92,12 @@
     };
 
     function update() {
-      // Apply gravity
       player.dy += player.gravity;
 
-      // Horizontal movement
       if (keys.left) player.dx = -5;
       else if (keys.right) player.dx = 5;
       else player.dx = 0;
 
-      // Jumping
       if (keys.jump && player.onGround) {
         player.dy = player.jumpPower;
         player.onGround = false;
@@ -100,16 +106,17 @@
       player.x += player.dx;
       player.y += player.dy;
 
-      // Prevent player from going out of canvas horizontally
       if (player.x < 0) player.x = 0;
       if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-      // Simple ground collision
       if (player.y + player.height > canvas.height) {
         player.y = canvas.height - player.height;
         player.dy = 0;
         player.onGround = true;
       }
+
+      // Reset jump key after applying jump to avoid continuous jumping
+      keys.jump = false;
     }
 
     function draw() {
@@ -134,11 +141,11 @@
 
     gameLoop();
 
-    // Touch event handlers for buttons
+    // Touch controls for left/right buttons
     function addTouchListeners(id, keyName) {
       const btn = document.getElementById(id);
       btn.addEventListener("touchstart", (e) => {
-        e.preventDefault(); // Prevent scrolling on mobile
+        e.preventDefault();
         keys[keyName] = true;
       }, { passive: false });
       btn.addEventListener("touchend", (e) => {
@@ -153,9 +160,29 @@
 
     addTouchListeners("left", "left");
     addTouchListeners("right", "right");
-    addTouchListeners("jump", "jump");
 
-    // Optional: Keyboard support for desktop testing
+    // Jump on tap anywhere outside left/right buttons
+    canvas.addEventListener("touchstart", (e) => {
+      // Detect if touch is NOT on left/right buttons
+      for (let touch of e.touches) {
+        const leftBtn = document.getElementById("left").getBoundingClientRect();
+        const rightBtn = document.getElementById("right").getBoundingClientRect();
+
+        // If touch inside left or right button, ignore jump
+        if (
+          (touch.clientX >= leftBtn.left && touch.clientX <= leftBtn.right &&
+           touch.clientY >= leftBtn.top && touch.clientY <= leftBtn.bottom) ||
+          (touch.clientX >= rightBtn.left && touch.clientX <= rightBtn.right &&
+           touch.clientY >= rightBtn.top && touch.clientY <= rightBtn.bottom)
+        ) {
+          return; // Don't jump if touching buttons
+        }
+      }
+      // Otherwise, jump
+      keys.jump = true;
+    }, { passive: false });
+
+    // Optional: Keyboard for desktop testing
     window.addEventListener("keydown", (e) => {
       if (e.key === "ArrowLeft") keys.left = true;
       if (e.key === "ArrowRight") keys.right = true;
@@ -167,7 +194,7 @@
       if (e.key === " " || e.key === "ArrowUp") keys.jump = false;
     });
 
-    // Resize canvas when window size changes
+    // Resize canvas on window resize
     window.addEventListener("resize", () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight * 0.8;
